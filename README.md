@@ -2,9 +2,7 @@
 
 This project develops and implements a **numerical scheme** for the **kinetic Fokker–Planck equation** in one spatial and one velocity dimension. The equation has the general form
 
-\[
-\partial_t f=\mathcal{L}f:=-v\cdot\nabla_x f+\nabla_x V\cdot \nabla_v f+\nabla_v\cdot \left(\mathcal{M}\nabla_v\left(\frac{f}{\mathcal{M}}\right)\right),
-\]
+$$ \partial_t f=\mathcal{L}f:=-v\cdot\nabla_x f+\nabla_x V\cdot \nabla_v f+\nabla_v\cdot \left(\mathcal{M}\nabla_v\left(\frac{f}{\mathcal{M}}\right)\right), $$
 
 where:
 - The **transport operator** corresponds to a **classical Hamiltonian vector field** with external potential $V(x)$,

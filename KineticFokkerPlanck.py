@@ -71,7 +71,7 @@ V = np.linspace(-Lv, Lv, Nv)
 [xx,vv] = np.meshgrid(X,V)
 
 alpha = 2
-beta = 0.5
+beta = 1.
 #gamma = 2 # gamma > 1
 
 #   TOOLS FOR ADVECTION
@@ -85,7 +85,7 @@ V_p = np.where(Uv > 0)
 V_n = np.where(Uv <= 0)
 
 dt = dx*dv/(dx * np.abs(Uv[-1,-1]) + dv * np.abs(Ux[-1,-1]) )
-T = 100
+T = 300
 Nt = int(T/dt) + 1
 T_points = np.linspace(0, T, Nt)
 
@@ -116,15 +116,15 @@ Nx += 2 # Ghost points
 Nv += 2 # Ghost points
 
 # Initialization
-#f= np.zeros([Nv,Nx]) # Ghost points set to 0
-#f[1:-1,1:-1] = np.exp(-(xx-3)**2 - (vv-3)**2)
-#f = f /(dx*dv*sum(sum(f)))
-with open('KFP_alpha2_beta0.5_Lx50Lv50.pkl','rb') as file:
-    ( f, X, V, T )= pickle.load(file)
+f= np.zeros([Nv,Nx]) # Ghost points set to 0
+f[1:-1,1:-1] = np.exp(-(xx)**2 - (vv)**2)
+f = f /(dx*dv*sum(sum(f)))
+#with open('KFP_alpha2_beta0.5_Lx50Lv50.pkl','rb') as file:
+#    ( f, X, V, T )= pickle.load(file)
 
 
 
-print("sum(f(0)) = " + str(dx*dv*sum(sum(f))))
+#print("sum(f(0)) = " + str(dx*dv*sum(sum(f))))
 
 # Equilibrium for beta = 2
 eq = np.zeros([Nv,Nx]) # Ghost points set to 0
@@ -138,7 +138,7 @@ for k in range(Nt):
         f[:,n] = Chang_Cooper(f[:,n])
     
 
-print("sum(f(T)) = " + str(dx*dv*sum(sum(f))))
+#print("sum(f(T)) = " + str(dx*dv*sum(sum(f))))
   
 
 try:

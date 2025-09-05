@@ -66,16 +66,27 @@ def mass(f,dx,dv):
 def rho(f,dv):
     return dv * np.sum(f,axis=0)
 
-with open('KFP_alpha1_beta1.5_Lx1000Lv1000.pkl','rb') as file:
+Lv = 100
+
+
+with open('KFP_alpha2_beta1.0_Lx100Lv'+str(Lv)+ '.pkl','rb') as file:
     ( f, x, v, T )= pickle.load(file)
     
 dx=x[1]-x[0]
 dv=v[1]-v[0]
-#contour_f(X,V,f,2,0.25)
+#contour_f(X,V,f,2,1)
 
 
-#plt.semilogy(X,rho(f,dv)[1:-1])
-#plt.semilogy(X, 0.04*np.exp(-X**0.5/2.5))
+plt.semilogy(x,rho(f,dv)[1:-1], label=r"$v_{max} = $"+str(Lv))
+#plt.semilogy(x, 0.2*np.exp(-x**0.47))
 #plt.semilogy(X, np.exp(-X**2/50))
 #plt.title(r'$\rho_G$ with $\alpha=2$ and $\beta = 0.5$')
 #plt.show()
+plt.legend()
+#plt.ylim(10**(-6), 1)
+
+
+# f0=f[:, 101]
+# plt.semilogy(v, f0[1:-1])
+# plt.semilogy(v, 0.01*np.exp(-1.1*v**0.5))
+

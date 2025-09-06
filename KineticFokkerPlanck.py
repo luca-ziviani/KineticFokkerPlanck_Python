@@ -13,10 +13,77 @@ import numpy as np
 from scipy.sparse import diags
 from scipy.sparse.linalg import splu
 import pickle
-import os
+#import os
+import matplotlib.pyplot as plt
+from matplotlib import cm # for colormaps
 
-script_dir = os.path.abspath(os.path.dirname(__file__))
-os.chdir(script_dir)
+
+#script_dir = os.path.abspath(os.path.dirname(__file__))
+#os.chdir(script_dir)
+
+def minmod(*args):
+    signs = [x > 0 for x in args if x != 0]
+
+    if all(signs) or not any(signs):  # tutti positivi o tutti negativi (escludendo zeri)
+        return min(args, key=abs) if args else 0
+    else:
+        return 0
+
+def H_build(f, theta=1):    
+    
+    Df=np.zeros((Nv,Nx))
+    
+    for n in range(1,Nx-1):
+        for m in range(Nv): # probably range(1, Nv-1)
+            Df[m,n] = minmod(theta*(f[m,n] - f[m,n-1])/dx , (f[m,n+1]-f[m,n-1])/(2*dx) , theta*(f[m,n+1]-f[m,n])/dx)
+    
+    #f_plus = f[:, 1:] - dx/2 * Df[:, 1:]        # size [Nv , Nx-1]
+    #f_minus = f[:, :-1] + dx/2 * Df[:, :-1]     # size [Nv , Nx-1]
+
+    f_plus = np.zeros((Nv, Nx-1))
+    f_minus = np.zeros((Nv, Nx-1))
+    
+    f_plus[:,:-1] = f[:, 1:-1] - dx/2 * Df[:, 1:-1]        # size [Nv , Nx-1]
+    f_minus[:,1:] = f[:, 1:-1] + dx/2 * Df[:, 1:-1]     # size [Nv , Nx-1]
+    
+    f_plus[:,-1] = f_minus[::-1,-1]
+    f_minus[:,0] = f_plus[::-1,0]
+    
+    H=np.zeros((Nv,Nx-1))
+    
+    for n in range(0,Nx-1):
+        for m in range(Nv): # probably range(1, Nv-1)
+            H[m,n] = V[m]*(f_plus[m,n] + f_minus[m,n])/2 - np.abs(V[m]) * (f_plus[m,n] - f_minus[m,n]) /2
+    
+    return H
+
+
+def F_build(f):
+    V_c = np.linspace(-Lv+dv/2,Lv-dv/2,Nv-1) 
+    
+    alpha = 2
+    beta=2
+    B=np.zeros((Nv-1,Nx))
+    
+    for n in range(Nx):
+        for m in range(Nv-1):
+            B[m,n]= (1+V_c[m]**2)**( (beta-2)/2 )*V_c[m] + (1+X[n]**2)**( (alpha-2)/2 )*X[n]
+            
+    w = dv * B
+    delta = 1/w - 1/(np.exp(w)-1)
+    F=np.zeros((Nv-1,Nx))
+    
+    for n in range(Nx):
+        for m in range(Nv-1):
+            F[m,n] = (1/dv + (1-delta[m,n])*B[m,n]) * f[m+1,n] - (1/dv - B[m,n]*delta[m,n])*f[m,n]
+    
+    F[0,:] = 0
+    F[-1,:] = 0
+
+
+
+    return F
+
 
 def FD_Advection(f):
     """
@@ -39,6 +106,9 @@ def FD_Advection(f):
     df[V_n[0]+1,V_n[1]+1] -= dt / dv * (f[V_n[0]+1,V_n[1]] - f[V_n[0],V_n[1]]) * Uv[V_n[0],V_n[1]]
 
     return f + df[1:-1,1:-1]
+
+def FV_Advection(f):
+    return
     
 def Chang_Cooper(u):
     """
@@ -53,24 +123,176 @@ def Chang_Cooper(u):
 
     return u
 
+
+class Grid:
+    def __init__(self, rows, columns, Xmax, Vmax):
+        # grid with ghost points
+        self.rows = rows
+        self.columns = columns
+        self.values = np.zeros((rows+2,columns+2))
+        
+        
+        # grid size
+        self.Xmax = Xmax
+        self.Vmax = Vmax
+
+        self.dx = 2 * self.Xmax / self.columns
+        self.dv = 2 * self.Vmax / self.rows
+        
+        self.x = np.linspace(-self.Xmax +self.dx/2 , self.Xmax - self.dx/2 , self.columns)
+        self.v = np.linspace(-self.Vmax +self.dv/2 , self.Vmax - self.dv/2 , self.rows)
+        #self.v=self.v[::-1]
+
+        [self.xx,self.vv] = np.meshgrid(self.x ,self.v)
+        
+        # Tools
+        self.GradX = np.ones((rows, columns))
+        self.f_plus = np.zeros((rows, columns+1))
+        self.f_minus = np.zeros((rows, columns+1))
+        self.H = np.zeros(( rows, columns +1))
+        
+        
+        
+    def specular_BD(self):
+        """
+        Update ghost points in x according to
+        specular boundary conditions
+
+        """
+        
+        for i in range(self.rows):
+            self.values[i+1 , -1] = self.values[self.rows-i-1 , -2]
+            self.values[i+1 , 0] = self.values[self.rows-i-1,1 ]
+
+    #    for i in range(self.rows):
+     #       self.values[i+1 , -2] = self.values[self.rows-i-1 , -3]
+      #      self.values[i+1 , 1] = self.values[self.rows-i-1, 2]
+            
+
+    def H_update(self, theta=1.5):    
+        
+        for n in range(1,self.columns+1):
+            for m in range(1, self.rows+1): 
+                #self.GradX[m-1,n-1] = minmod(theta*(self.values[m,n] - self.values[m,n-1])/self.dx ,
+                #                 (self.values[m,n+1]-self.values[m,n-1])/(2*self.dx) , 
+                #                 theta*(self.values[m,n+1]-self.values[m,n])/self.dx)
+                
+                # UPWIND for v>0
+                if self.v[m-1]>0:
+                    self.GradX[m-1,n-1 ] =(self.values[m,n]-self.values[m,n-1])/(self.dx)
+                else:
+                    self.GradX[m-1,n-1 ] =(self.values[m,n+1]-self.values[m,n])/(self.dx)
+        
+        self.f_plus[:,:-1] = self.values[1:-1,1:-1] - self.dx/2 * self.GradX
+        self.f_minus[:,1:] = self.values[1:-1,1:-1] + self.dx/2 * self.GradX
+        
+        for n in range(self.columns+1):
+            for m in range(self.rows):
+                self.H[m,n] = self.v[m]*(self.f_plus[m,n] + self.f_minus[m,n])/2 
+                - np.abs(self.v[m]) * (self.f_plus[m,n] - self.f_minus[m,n]) /2
+        return 
+
+    def mass(self):
+        return sum(sum(self.values[1:-1,1:-1]))*self.dx*self.dv
+
+    def plot_grid(self):
+        ax = plt.axes(projection='3d')
+        #ax.plot_surface(self.vv, self.xx, self.H[:,1:] , cmap=cm.jet)
+        ax.plot_surface(self.xx, self.vv, self.values[1:-1,1:-1] , cmap=cm.jet) #[1:-1][::-1, 1:-1]
+        ax.set_xlabel("x")
+        ax.set_ylabel("v")
+        ax.set_title("Plot of f")
+
+
+grid = Grid(80,80,10,10)
+
+grid.values[1:-1,1:-1] = np.exp(-(grid.xx-5)**2/2 - (grid.vv-3)**2/2)/(2*np.pi)
+#grid.values[1:-1,-2] = np.ones(grid.rows)
+grid.specular_BD()
+
+
+
+print("Mass:", grid.mass())
+
+dt = 0.004
+Nt = 700
+
+for k in range(Nt):
+    grid.H_update()
+    grid.values[1:-1,1:-1] = grid.values[1:-1,1:-1] - dt/grid.dx *(grid.H[:,1:] - grid.H[:,:-1])
+    grid.specular_BD()
+
+print("Mass:", grid.mass())
+
+grid.plot_grid()
+
+
+
 ##########################
 #      MAIN PROGRAM      #
 ##########################
+"""
 
 # DOMAIN: (x,v) in [-Lx, Lx] x [-Lv, Lv]
-Lx = 50
-Lv = 50
+Lx = 5
+Lv = 5
 
-# GRID OF POINTS
-Nx = 101 
-Nv = 101 
+# NUMBER OV CELLS
+Nx = 22
+Nv = 20
 
-dx = 2 * Lx / (Nx-1) 
-dv = 2 * Lv / (Nv-1) # Stability for Chang-Cooper
+# SIZE OF CELLS
+dx = 2 * Lx / Nx 
+dv = 2 * Lv / Nv 
 
-X = np.linspace(-Lx, Lx, Nx)
-V = np.linspace(-Lv, Lv, Nv)
+X = np.linspace(-Lx +dx/2 , Lx - dx/2 , Nx)
+#X = np.linspace(-Lx, Lx, Nx)
+V= np.linspace(-Lv +dv/2 , Lv - dv/2 , Nv)
+#V = np.linspace(-Lv, Lv, Nv)
 [xx,vv] = np.meshgrid(X,V)
+
+# Initialization
+f= np.zeros([Nv,Nx]) # Ghost points set to 0
+#f[1:-1,1:-1] = np.exp(-(xx[1:-1,1:-1])**2 - (vv[1:-1,1:-1])**2)
+f = np.exp(-(xx-1)**2 - (vv)**2)
+f = f /(dx*dv*sum(sum(f)))
+
+
+
+
+
+#H = H(f)
+#F = F(f)
+
+T = 1
+Nt=10
+
+dt = T/Nt
+
+k=0
+
+f1= np.zeros(np.shape(f))
+
+while k<Nt :
+    for n in range(1,Nx-1):
+        for m in range(1,Nv-1):
+            H = H_build(f)
+            F = F_build(f)
+            f[m,n] = f[m,n] + dt * (H[m, n]-H[m,n-1 ])/dx +dt* (F[m,n]-F[m-1,n])/dv
+    
+    k+=1
+    
+
+
+
+#ax = plt.axes(projection='3d')
+#ax.plot_surface(xx[:,1:], vv[:,1:], H, cmap=cm.jet)
+
+#ax = plt.axes(projection='3d')
+#ax.plot_surface(xx[1:,:], vv[1:,:], F, cmap=cm.jet)
+
+ax = plt.axes(projection='3d')
+ax.plot_surface(xx, vv, f, cmap=cm.jet)
 
 alpha = 2
 beta = 1.
@@ -153,9 +375,9 @@ else:
         pickle.dump(( f, X, V, T ),file)
 
 
+"""
 
-
-
+m=0
 
 
 

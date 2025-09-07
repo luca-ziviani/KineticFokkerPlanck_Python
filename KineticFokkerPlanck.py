@@ -188,8 +188,18 @@ class Grid:
         
         for n in range(self.columns+1):
             for m in range(self.rows):
-                self.H[m,n] = self.v[m]*(self.f_plus[m,n] + self.f_minus[m,n])/2 
-                - np.abs(self.v[m]) * (self.f_plus[m,n] - self.f_minus[m,n]) /2
+                if self.v[m]>=0:
+                    self.H[m,n] = self.v[m]*self.f_minus[m,n]
+                else:
+                    self.H[m,n] = self.v[m]*self.f_plus[m,n]
+                #self.H[m,n] = self.v[m]*(self.f_plus[m,n] + self.f_minus[m,n])/2 
+                #- np.abs(self.v[m]) * (self.f_plus[m,n] - self.f_minus[m,n]) /2
+
+        # Specular flux in bounary conditions
+        for i in range(int(self.rows /2)):
+            self.H[self.rows - 1 -i, 0] = -self.H[i,0]
+            self.H[i, -1] = -self.H[self.rows - 1 -i,-1]
+        
         return 
 
     def mass(self):
@@ -215,7 +225,7 @@ grid.specular_BD()
 print("Mass:", grid.mass())
 
 dt = 0.004
-Nt = 700
+Nt = 500
 
 for k in range(Nt):
     grid.H_update()

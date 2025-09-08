@@ -21,7 +21,7 @@ from matplotlib import cm # for colormaps
 #script_dir = os.path.abspath(os.path.dirname(__file__))
 #os.chdir(script_dir)
 
-"""
+
 def minmod(*args):
     signs = [x > 0 for x in args if x != 0]
 
@@ -29,7 +29,6 @@ def minmod(*args):
         return min(args, key=abs) if args else 0
     else:
         return 0
-"""
 
 
 
@@ -43,7 +42,7 @@ class Grid:
         self.rows = rows
         self.columns = columns
         self.values = np.zeros((rows+2,columns+2))
-        
+        self.rho = None  
         
         # grid size
         self.Xmax = Xmax
@@ -51,6 +50,7 @@ class Grid:
 
         self.dx = 2 * self.Xmax / self.columns
         self.dv = 2 * self.Vmax / self.rows
+        self.dt = self.dx /(4*Vmax) 
         
         self.x = np.linspace(-self.Xmax +self.dx/2 , self.Xmax - self.dx/2 , self.columns)
         self.v = np.linspace(-self.Vmax +self.dv/2 , self.Vmax - self.dv/2 , self.rows)
@@ -70,6 +70,8 @@ class Grid:
         
     def B_delta_build(self):
         V_edges = np.linspace(-self.Vmax +self.dv , self.Vmax - self.dv , self.rows-1)
+        M1 = 0 # maximum needed to compute CFL condition on dt
+        M2 = 0
         for n in range(self.columns):
             for m in range(self.rows-1):
                 self.B[m,n] = (1+ V_edges[m]**2)**((self.beta - 2)/2)*V_edges[m] \
@@ -78,10 +80,17 @@ class Grid:
                 w = self.B[m,n] * self.dv
                 if w!=0:
                     self.delta[m,n] = 1/w - 1/(np.exp(w)-1)
+                    if M1 <= w/(np.exp(w)-1):
+                        M1 = w/(np.exp(w)-1)
+                    if M2 <= w*np.exp(w)/(np.exp(w)-1):
+                        M2 = w*np.exp(w)/(np.exp(w)-1)
                 else:
                     self.delta[m,n] = 0.5
-        
-               
+                
+                if self.dt >= 0.5 * (self.dv)**2 /(M1+M2):  
+                    self.dt = 0.5 * (self.dv)**2 /(M1+M2)
+
+        self.dt = self.dt/2
         
         return
         
@@ -105,15 +114,15 @@ class Grid:
         """
         for n in range(1,self.columns+1):
             for m in range(1, self.rows+1): 
-                #self.GradX[m-1,n-1] = minmod(theta*(self.values[m,n] - self.values[m,n-1])/self.dx ,
-                #                 (self.values[m,n+1]-self.values[m,n-1])/(2*self.dx) , 
-                #                 theta*(self.values[m,n+1]-self.values[m,n])/self.dx)
+                self.GradX[m-1,n-1] = minmod(theta*(self.values[m,n] - self.values[m,n-1])/self.dx ,
+                                 (self.values[m,n+1]-self.values[m,n-1])/(2*self.dx) , 
+                                 theta*(self.values[m,n+1]-self.values[m,n])/self.dx)
                 
                 # UPWIND for v>0
-                if self.v[m-1]>0:
-                    self.GradX[m-1,n-1 ] =(self.values[m,n]-self.values[m,n-1])/(self.dx)
-                else:
-                    self.GradX[m-1,n-1 ] =(self.values[m,n+1]-self.values[m,n])/(self.dx)
+#                if self.v[m-1]>0:
+ #                   self.GradX[m-1,n-1 ] =(self.values[m,n]-self.values[m,n-1])/(self.dx)
+  #              else:
+   #                 self.GradX[m-1,n-1 ] =(self.values[m,n+1]-self.values[m,n])/(self.dx)
         
         self.f_plus[:,:-1] = self.values[1:-1,1:-1] - self.dx/2 * self.GradX
         self.f_minus[:,1:] = self.values[1:-1,1:-1] + self.dx/2 * self.GradX
@@ -148,6 +157,16 @@ class Grid:
     def mass(self):
         return sum(sum(self.values[1:-1,1:-1]))*self.dx*self.dv
 
+    def build_rho(self):
+        self.rho = sum(self.values[1:-1,1:-1])*self.dv
+        return
+    
+    def build_Vdensity(self):
+        DF = np.zeros(self.rows)
+        for i in range(self.rows):
+            DF[i] = sum(self.values[i,1:-1])
+        return DF
+
     def plot_grid(self):
         ax = plt.axes(projection='3d')
         ax.plot_surface(self.xx, self.vv, self.values[1:-1,1:-1] , cmap=cm.jet) #[1:-1][::-1, 1:-1]
@@ -156,41 +175,67 @@ class Grid:
         ax.set_title("Plot of f")
 
 
-grid = Grid(40,40,10,10)
-#grid = Grid(80,80,10,10)
+grid = Grid(80,80,30,30)
 
-grid.alpha = 2
+grid.alpha = 1
 grid.beta = 2
+ 
+print("")
+print("alpha = ", grid.alpha)
+print("beta  = ", grid.beta)
+print("")
 
-grid.values[1:-1,1:-1] = np.exp(-(grid.xx)**2/2 - (grid.vv-3)**2/2)/(2*np.pi)
-#grid.values[1:-1,-2] = np.ones(grid.rows)
+# Initialisation:
+grid.values[1:-1,1:-1] = np.exp(-(np.abs(grid.xx)**2)/2 - (grid.vv)**2/2)/(2*np.pi)
 grid.specular_BD()
-
 grid.B_delta_build()
 
-#grid.F_update()
+T = 30
+Nt = int(T/grid.dt)
 
-print("Mass:", grid.mass())
+print("dt = " , grid.dt)
+print("T = ", T)
+print("Nt = ", Nt)
+print(" ")
 
+print("Initial mass:", grid.mass())
+print(" ")
 
-
-dt = 0.004
-Nt = 1000
 
 for k in range(Nt):
     grid.H_update()
     grid.F_update()
     # RK: if modify the sign in front of H, modify the Upwind too!
-    grid.values[1:-1,1:-1] = grid.values[1:-1,1:-1] - dt/grid.dx *(grid.H[:,1:] - grid.H[:,:-1]) + dt/grid.dv *(grid.F[1:,:] - grid.F[:-1,:])
+    grid.values[1:-1,1:-1] = grid.values[1:-1,1:-1] - grid.dt/grid.dx *(grid.H[:,1:] - grid.H[:,:-1]) \
+                                                    + grid.dt/grid.dv *(grid.F[1:,:] - grid.F[:-1,:])
     
     grid.specular_BD()
 
+    if k % int(Nt/10) == 0:
+        print(f"Iteration: {k} / {Nt}")
+        
 print("Mass:", grid.mass())
 
+
+grid.build_rho()
+
+fig1=plt.figure(1)
+plt.semilogy(grid.x, grid.rho,label ="rho")
+Z=sum(np.exp(-(1+grid.x**2 )**(grid.alpha/2) / grid.alpha))*grid.dx
+plt.semilogy(grid.x , np.exp(-(1+grid.x**2 )**(grid.alpha/2) / grid.alpha)/Z, label = "analytical")
+plt.legend()
+plt.title(r"Plot of $\rho_G$ with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +str(grid.beta)+r", $T=$"+ str(T))
+#grid.plot_grid()
+
+fig2=plt.figure(2)
+DF = grid.build_Vdensity()
+#plt.plot(grid.v, DF)
+#plt.plot(grid.v, np.exp(-grid.v**2 /2) / np.sqrt(2*np.pi))
+plt.semilogy(grid.v, np.exp(-grid.v**2 /2) / np.sqrt(2*np.pi), label = "analytical")
+plt.semilogy(grid.v, DF, label = "numeric")
+plt.legend()
+plt.title(r"Plot of v-density with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +str(grid.beta)+r", $T=$"+ str(T))
+
+fig2 =plt.figure(3)
 grid.plot_grid()
-
-
-
-
-
 

@@ -66,27 +66,32 @@ def mass(f,dx,dv):
 def rho(f,dv):
     return dv * np.sum(f,axis=0)
 
-Lv = 100
+T=40
+alpha=2
+beta = 2
 
-
-with open('KFP_alpha2_beta1.0_Lx100Lv'+str(Lv)+ '.pkl','rb') as file:
-    ( f, x, v, T )= pickle.load(file)
+with open('f_T'+str(T)+'_alpha'+str(alpha)+'_beta'+str(beta)+'.pkl','rb') as file:
+    grid = pickle.load(file)
     
-dx=x[1]-x[0]
-dv=v[1]-v[0]
-#contour_f(X,V,f,2,1)
+    
+grid.build_rho()
 
-
-plt.semilogy(x,rho(f,dv)[1:-1], label=r"$v_{max} = $"+str(Lv))
-#plt.semilogy(x, 0.2*np.exp(-x**0.47))
-#plt.semilogy(X, np.exp(-X**2/50))
-#plt.title(r'$\rho_G$ with $\alpha=2$ and $\beta = 0.5$')
-#plt.show()
+fig1=plt.figure(1)
+plt.semilogy(grid.x, grid.rho,label ="rho")
+Z=sum(np.exp(-(1+grid.x**2 )**(grid.alpha/2) / grid.alpha))*grid.dx
+plt.semilogy(grid.x , np.exp(-(1+grid.x**2 )**(grid.alpha/2) / grid.alpha)/Z, label = "analytical")
 plt.legend()
-#plt.ylim(10**(-6), 1)
+plt.title(r"Plot of $\rho_G$ with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +str(grid.beta)+r", $T=$"+ str(T))
+#grid.plot_grid()
 
+fig2=plt.figure(2)
+DF = grid.build_Vdensity()
+#plt.plot(grid.v, DF)
+#plt.plot(grid.v, np.exp(-grid.v**2 /2) / np.sqrt(2*np.pi))
+plt.semilogy(grid.v, np.exp(-grid.v**2 /2) / np.sqrt(2*np.pi), label = "analytical")
+plt.semilogy(grid.v, DF, label = "numeric")
+plt.legend()
+plt.title(r"Plot of v-density with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +str(grid.beta)+r", $T=$"+ str(T))
 
-# f0=f[:, 101]
-# plt.semilogy(v, f0[1:-1])
-# plt.semilogy(v, 0.01*np.exp(-1.1*v**0.5))
-
+fig2 =plt.figure(3)
+grid.plot_grid()

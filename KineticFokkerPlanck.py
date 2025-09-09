@@ -164,7 +164,7 @@ class Grid:
     def build_Vdensity(self):
         DF = np.zeros(self.rows)
         for i in range(self.rows):
-            DF[i] = sum(self.values[i,1:-1])
+            DF[i] = sum(self.values[i+1,1:-1])
         return DF
 
     def plot_grid(self):
@@ -175,11 +175,17 @@ class Grid:
         ax.set_title("Plot of f")
 
 
-grid = Grid(80,80,30,30)
+grid  = Grid(80,80,50,50)
+grid1 = Grid(80,80,50,50) # For Runghe-Kutta
 
-grid.alpha = 1
-grid.beta = 2
- 
+alpha = 2
+beta  = 1
+
+grid.alpha = alpha
+grid.beta = beta
+grid1.alpha = alpha
+grid1.beta = beta
+
 print("")
 print("alpha = ", grid.alpha)
 print("beta  = ", grid.beta)
@@ -187,10 +193,10 @@ print("")
 
 # Initialisation:
 grid.values[1:-1,1:-1] = np.exp(-(np.abs(grid.xx)**2)/2 - (grid.vv)**2/2)/(2*np.pi)
-grid.specular_BD()
 grid.B_delta_build()
+grid1.B_delta_build()
 
-T = 30
+T = 50
 Nt = int(T/grid.dt)
 
 print("dt = " , grid.dt)
@@ -202,19 +208,44 @@ print("Initial mass:", grid.mass())
 print(" ")
 
 
+
 for k in range(Nt):
+    grid.specular_BD()
     grid.H_update()
     grid.F_update()
     # RK: if modify the sign in front of H, modify the Upwind too!
-    grid.values[1:-1,1:-1] = grid.values[1:-1,1:-1] - grid.dt/grid.dx *(grid.H[:,1:] - grid.H[:,:-1]) \
+    grid1.values[1:-1,1:-1] = grid.values[1:-1,1:-1] - grid.dt/grid.dx *(grid.H[:,1:] - grid.H[:,:-1]) \
                                                     + grid.dt/grid.dv *(grid.F[1:,:] - grid.F[:-1,:])
     
-    grid.specular_BD()
+    grid1.specular_BD()
+    grid1.H_update()
+    grid1.F_update()
+    
+    grid.values[1:-1,1:-1] = 0.5 *  grid.values[1:-1,1:-1] + \
+                             0.5 * (grid1.values[1:-1,1:-1] - grid1.dt/grid1.dx *(grid1.H[:,1:] - grid1.H[:,:-1]) \
+                                                            + grid1.dt/grid1.dv *(grid1.F[1:,:] - grid1.F[:-1,:]) )
+    
+    
 
     if k % int(Nt/10) == 0:
         print(f"Iteration: {k} / {Nt}")
         
-print("Mass:", grid.mass())
+        grid.build_rho()
+        plt.semilogy(grid.x, grid.rho,label ="rho")
+        
+        # beta < 2
+        Z=sum(np.exp(-((1+grid.x**2 )**(grid.alpha/2) / grid.alpha )**(grid.beta/2)))*grid.dx
+        plt.semilogy(grid.x , np.exp(-((1+grid.x**2 )**(grid.alpha/2) / grid.alpha )**(grid.beta/2))/Z, label = "analytical")
+        #beta > 2
+        #Z=sum(np.exp(-(1+grid.x**2 )**(grid.alpha/2) / grid.alpha))*grid.dx
+        #plt.semilogy(grid.x , np.exp(-(1+grid.x**2 )**(grid.alpha/2) / grid.alpha)/Z, label = "analytical")
+
+        plt.legend()
+        plt.title(r"Plot of $\rho_G$ with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +str(grid.beta)+r", $T=$"+ str(round(k*grid.dt , 1)))
+        plt.show()
+
+print(" ")        
+print("Final mass:", grid.mass())
 
 
 grid.build_rho()
@@ -227,7 +258,7 @@ plt.legend()
 plt.title(r"Plot of $\rho_G$ with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +str(grid.beta)+r", $T=$"+ str(T))
 #grid.plot_grid()
 
-fig2=plt.figure(2)
+fig1=plt.figure(1)
 DF = grid.build_Vdensity()
 #plt.plot(grid.v, DF)
 #plt.plot(grid.v, np.exp(-grid.v**2 /2) / np.sqrt(2*np.pi))
@@ -238,4 +269,11 @@ plt.title(r"Plot of v-density with $\alpha=$" + str(grid.alpha) + r", $\beta=$" 
 
 fig2 =plt.figure(3)
 grid.plot_grid()
+
+
+
+# Save
+#with open('f_T'+str(35)+'_alpha'+str(grid.alpha)+'_beta'+str(grid.beta)+'bis.pkl', 'wb') as filef:
+#    pickle.dump(grid,filef)
+    
 

@@ -66,9 +66,10 @@ def mass(f,dx,dv):
 def rho(f,dv):
     return dv * np.sum(f,axis=0)
 
-T=40
-alpha=2
+
+alpha = 1
 beta = 2
+T = 10
 
 with open('f_T'+str(T)+'_alpha'+str(alpha)+'_beta'+str(beta)+'.pkl','rb') as file:
     grid = pickle.load(file)

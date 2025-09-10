@@ -174,38 +174,57 @@ class Grid:
         ax.set_ylabel("v")
         ax.set_title("Plot of f")
 
+alpha = 1
+beta  = 2
+T = 20
+modulo = 10
 
-grid  = Grid(80,80,50,50)
-grid1 = Grid(80,80,50,50) # For Runghe-Kutta
+CONTINUE = False
 
-alpha = 2
-beta  = 1
 
-grid.alpha = alpha
-grid.beta = beta
-grid1.alpha = alpha
-grid1.beta = beta
+if CONTINUE:
+    T_old = 3
+    with open('f_T'+str(round( T_old ))+'_alpha'+str(alpha)+'_beta'+str(beta)+'.pkl', 'rb') as filef:
+        grid = pickle.load(filef)
+    
+    grid1 = Grid(grid.rows, grid.columns, grid.Xmax, grid.Vmax)
+    grid1.alpha = alpha
+    grid1.beta = beta
+    grid1.B_delta_build()
+    
+    
+    Nt = int(T/grid.dt)
 
-print("")
-print("alpha = ", grid.alpha)
-print("beta  = ", grid.beta)
-print("")
-
-# Initialisation:
-grid.values[1:-1,1:-1] = np.exp(-(np.abs(grid.xx)**2)/2 - (grid.vv)**2/2)/(2*np.pi)
-grid.B_delta_build()
-grid1.B_delta_build()
-
-T = 50
-Nt = int(T/grid.dt)
-
-print("dt = " , grid.dt)
-print("T = ", T)
-print("Nt = ", Nt)
-print(" ")
-
-print("Initial mass:", grid.mass())
-print(" ")
+    
+else:
+    grid  = Grid(40,40,10,10)
+    grid1 = Grid(40,40,10,10) # For Runghe-Kutta
+    
+    grid.alpha = alpha
+    grid.beta = beta
+    grid1.alpha = alpha
+    grid1.beta = beta
+    
+    #print("")
+    #print("alpha = ", grid.alpha)
+    #print("beta  = ", grid.beta)
+    #print("")
+    
+    # Initialisation:
+    grid.values[1:-1,1:-1] = np.exp(-(np.abs(grid.xx)**2)/2 - (grid.vv)**2/2)/(2*np.pi)
+    grid.B_delta_build()
+    grid1.B_delta_build()
+    
+    T_old = 0
+    Nt = int(T/grid.dt)
+    
+    #print("dt = " , grid.dt)
+    #print("T = ", T)
+    #print("Nt = ", Nt)
+    #print(" ")
+    
+    #print("Initial mass:", grid.mass())
+    #print(" ")
 
 
 
@@ -227,53 +246,51 @@ for k in range(Nt):
     
     
 
-    if k % int(Nt/10) == 0:
+    if k % int(Nt/modulo) == 0:
         print(f"Iteration: {k} / {Nt}")
         
-        grid.build_rho()
-        plt.semilogy(grid.x, grid.rho,label ="rho")
+        with open('f_T'+str(round(T_old + k*grid.dt))+'_alpha'+str(grid.alpha)+'_beta'+str(grid.beta)+'.pkl', 'wb') as filef:
+            pickle.dump(grid,filef)
+        
+        #grid.build_rho()
+        #plt.semilogy(grid.x, grid.rho,label ="rho")
         
         # beta < 2
-        Z=sum(np.exp(-((1+grid.x**2 )**(grid.alpha/2) / grid.alpha )**(grid.beta/2)))*grid.dx
-        plt.semilogy(grid.x , np.exp(-((1+grid.x**2 )**(grid.alpha/2) / grid.alpha )**(grid.beta/2))/Z, label = "analytical")
+        #Z=sum(np.exp(-((1+grid.x**2 )**(grid.alpha/2) / grid.alpha )**(grid.beta/2)))*grid.dx
+        #plt.semilogy(grid.x , np.exp(-((1+grid.x**2 )**(grid.alpha/2) / grid.alpha )**(grid.beta/2))/Z, label = "analytical")
         #beta > 2
         #Z=sum(np.exp(-(1+grid.x**2 )**(grid.alpha/2) / grid.alpha))*grid.dx
         #plt.semilogy(grid.x , np.exp(-(1+grid.x**2 )**(grid.alpha/2) / grid.alpha)/Z, label = "analytical")
 
-        plt.legend()
-        plt.title(r"Plot of $\rho_G$ with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +str(grid.beta)+r", $T=$"+ str(round(k*grid.dt , 1)))
-        plt.show()
+        #plt.legend()
+        #plt.title(r"Plot of $\rho_G$ with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +str(grid.beta)+r", $T=$"+ str(round(k*grid.dt , 1)))
+        #plt.show()
 
-print(" ")        
-print("Final mass:", grid.mass())
+#print(" ")        
+#print("Final mass:", grid.mass())
 
 
-grid.build_rho()
 
-fig1=plt.figure(1)
-plt.semilogy(grid.x, grid.rho,label ="rho")
-Z=sum(np.exp(-(1+grid.x**2 )**(grid.alpha/2) / grid.alpha))*grid.dx
-plt.semilogy(grid.x , np.exp(-(1+grid.x**2 )**(grid.alpha/2) / grid.alpha)/Z, label = "analytical")
-plt.legend()
-plt.title(r"Plot of $\rho_G$ with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +str(grid.beta)+r", $T=$"+ str(T))
+
+#fig1=plt.figure(1)
+#grid.build_rho()
+#plt.semilogy(grid.x, grid.rho,label ="rho")
+#Z=sum(np.exp(-(1+grid.x**2 )**(grid.alpha/2) / grid.alpha))*grid.dx
+#plt.semilogy(grid.x , np.exp(-(1+grid.x**2 )**(grid.alpha/2) / grid.alpha)/Z, label = "analytical")
+#plt.legend()
+#plt.title(r"Plot of $\rho_G$ with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +str(grid.beta)+r", $T=$"+ str(T))
+
+#fig1=plt.figure(1)
+#DF = grid.build_Vdensity()
+#plt.semilogy(grid.v, np.exp(-grid.v**2 /2) / np.sqrt(2*np.pi), label = "analytical")
+#plt.semilogy(grid.v, DF, label = "numeric")
+#plt.legend()
+#plt.title(r"Plot of v-density with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +str(grid.beta)+r", $T=$"+ str(T))
+
+#fig2 =plt.figure(3)
 #grid.plot_grid()
 
-fig1=plt.figure(1)
-DF = grid.build_Vdensity()
-#plt.plot(grid.v, DF)
-#plt.plot(grid.v, np.exp(-grid.v**2 /2) / np.sqrt(2*np.pi))
-plt.semilogy(grid.v, np.exp(-grid.v**2 /2) / np.sqrt(2*np.pi), label = "analytical")
-plt.semilogy(grid.v, DF, label = "numeric")
-plt.legend()
-plt.title(r"Plot of v-density with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +str(grid.beta)+r", $T=$"+ str(T))
-
-fig2 =plt.figure(3)
-grid.plot_grid()
 
 
-
-# Save
-#with open('f_T'+str(35)+'_alpha'+str(grid.alpha)+'_beta'+str(grid.beta)+'bis.pkl', 'wb') as filef:
-#    pickle.dump(grid,filef)
     
 

@@ -104,16 +104,22 @@ class Grid:
         for i in range(self.rows):
             self.values[i+1 , -1] = self.values[self.rows-i-1 , -2]
             self.values[i+1 , 0] = self.values[self.rows-i-1,1 ]
-            
-
-    def H_update(self, theta=1.5):    
+    
+    def H_update(self):
         """
         
         Compute the flux H along the x direction
         
+        theta is a parameter for resolution and precision:
+            - theta -> 1 : high gradient
+            - theta -> 2 : flat regions
+        
         """
         for n in range(1,self.columns+1):
-            for m in range(1, self.rows+1): 
+            for m in range(1, self.rows+1):
+                
+                theta = 1.8
+                                
                 self.GradX[m-1,n-1] = minmod(theta*(self.values[m,n] - self.values[m,n-1])/self.dx ,
                                  (self.values[m,n+1]-self.values[m,n-1])/(2*self.dx) , 
                                  theta*(self.values[m,n+1]-self.values[m,n])/self.dx)
@@ -136,10 +142,12 @@ class Grid:
                 #self.H[m,n] = self.v[m]*(self.f_plus[m,n] + self.f_minus[m,n])/2 
                 #- np.abs(self.v[m]) * (self.f_plus[m,n] - self.f_minus[m,n]) /2
 
-        # Specular flux in bounary conditions
+        # Specular flux in boundary conditions
         for i in range(int(self.rows /2)):
             self.H[self.rows - 1 -i, 0] = -self.H[i,0]
             self.H[i, -1] = -self.H[self.rows - 1 -i,-1]
+        
+        
         
         return 
 
@@ -175,8 +183,8 @@ class Grid:
         ax.set_title("Plot of f")
 
 alpha = 1
-beta  = 2
-T = 20
+beta  = 0.5
+T = 50
 modulo = 10
 
 CONTINUE = False
@@ -197,18 +205,18 @@ if CONTINUE:
 
     
 else:
-    grid  = Grid(40,40,10,10)
-    grid1 = Grid(40,40,10,10) # For Runghe-Kutta
+    grid  = Grid(100,100,100,100)
+    grid1 = Grid(100,100,100,100) # For Runghe-Kutta
     
     grid.alpha = alpha
     grid.beta = beta
     grid1.alpha = alpha
     grid1.beta = beta
     
-    #print("")
-    #print("alpha = ", grid.alpha)
-    #print("beta  = ", grid.beta)
-    #print("")
+    print("")
+    print("alpha = ", grid.alpha)
+    print("beta  = ", grid.beta)
+    print("")
     
     # Initialisation:
     grid.values[1:-1,1:-1] = np.exp(-(np.abs(grid.xx)**2)/2 - (grid.vv)**2/2)/(2*np.pi)
@@ -218,13 +226,13 @@ else:
     T_old = 0
     Nt = int(T/grid.dt)
     
-    #print("dt = " , grid.dt)
-    #print("T = ", T)
-    #print("Nt = ", Nt)
-    #print(" ")
+    print("dt = " , grid.dt)
+    print("T = ", T)
+    print("Nt = ", Nt)
+    print(" ")
     
-    #print("Initial mass:", grid.mass())
-    #print(" ")
+    print("Initial mass:", grid.mass())
+    print(" ")
 
 
 
@@ -241,7 +249,7 @@ for k in range(Nt):
     grid1.F_update()
     
     grid.values[1:-1,1:-1] = 0.5 *  grid.values[1:-1,1:-1] + \
-                             0.5 * (grid1.values[1:-1,1:-1] - grid1.dt/grid1.dx *(grid1.H[:,1:] - grid1.H[:,:-1]) \
+                             0.5 * (grid1.values[1:-1,1:-1] - grid1.dt/grid1.dx *(grid1.H[:,1:] - grid1.H[:,:-1])  \
                                                             + grid1.dt/grid1.dv *(grid1.F[1:,:] - grid1.F[:-1,:]) )
     
     
@@ -249,11 +257,11 @@ for k in range(Nt):
     if k % int(Nt/modulo) == 0:
         print(f"Iteration: {k} / {Nt}")
         
-        with open('f_T'+str(round(T_old + k*grid.dt))+'_alpha'+str(grid.alpha)+'_beta'+str(grid.beta)+'.pkl', 'wb') as filef:
-            pickle.dump(grid,filef)
+        #with open('f_T'+str(round(T_old + k*grid.dt))+'_alpha'+str(grid.alpha)+'_beta'+str(grid.beta)+'.pkl', 'wb') as filef:
+        #    pickle.dump(grid,filef)
         
-        #grid.build_rho()
-        #plt.semilogy(grid.x, grid.rho,label ="rho")
+        grid.build_rho()
+        plt.semilogy(grid.x, grid.rho,label =r"$\rho$")
         
         # beta < 2
         #Z=sum(np.exp(-((1+grid.x**2 )**(grid.alpha/2) / grid.alpha )**(grid.beta/2)))*grid.dx
@@ -262,33 +270,36 @@ for k in range(Nt):
         #Z=sum(np.exp(-(1+grid.x**2 )**(grid.alpha/2) / grid.alpha))*grid.dx
         #plt.semilogy(grid.x , np.exp(-(1+grid.x**2 )**(grid.alpha/2) / grid.alpha)/Z, label = "analytical")
 
-        #plt.legend()
-        #plt.title(r"Plot of $\rho_G$ with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +str(grid.beta)+r", $T=$"+ str(round(k*grid.dt , 1)))
-        #plt.show()
+        plt.legend()
+        plt.title(r"Plot of $\rho_G$ with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +str(grid.beta)+r", $T=$"+ str(round(k*grid.dt , 1)))
+        plt.show()
+        
 
-#print(" ")        
-#print("Final mass:", grid.mass())
+print(" ")        
+print("Final mass:", grid.mass())
 
 
 
 
-#fig1=plt.figure(1)
-#grid.build_rho()
-#plt.semilogy(grid.x, grid.rho,label ="rho")
+fig1=plt.figure(1)
+grid.build_rho()
+plt.semilogy(grid.x, grid.rho,label ="rho")
+Z=sum(np.exp(-((1+grid.x**2 )**(grid.alpha/2) / grid.alpha )**(grid.beta/2)))*grid.dx
+plt.semilogy(grid.x , np.exp(-((1+grid.x**2 )**(grid.alpha/2) / grid.alpha )**(grid.beta/2))/Z, label = "analytical")
 #Z=sum(np.exp(-(1+grid.x**2 )**(grid.alpha/2) / grid.alpha))*grid.dx
 #plt.semilogy(grid.x , np.exp(-(1+grid.x**2 )**(grid.alpha/2) / grid.alpha)/Z, label = "analytical")
-#plt.legend()
-#plt.title(r"Plot of $\rho_G$ with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +str(grid.beta)+r", $T=$"+ str(T))
+plt.legend()
+plt.title(r"Plot of $\rho_G$ with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +str(grid.beta)+r", $T=$"+ str(T))
 
-#fig1=plt.figure(1)
-#DF = grid.build_Vdensity()
-#plt.semilogy(grid.v, np.exp(-grid.v**2 /2) / np.sqrt(2*np.pi), label = "analytical")
-#plt.semilogy(grid.v, DF, label = "numeric")
-#plt.legend()
-#plt.title(r"Plot of v-density with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +str(grid.beta)+r", $T=$"+ str(T))
+fig1=plt.figure(2)
+DF = grid.build_Vdensity()
+plt.semilogy(grid.v, np.exp(-grid.v**2 /2) / np.sqrt(2*np.pi), label = "analytical")
+plt.semilogy(grid.v, DF, label = "numeric")
+plt.legend()
+plt.title(r"Plot of v-density with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +str(grid.beta)+r", $T=$"+ str(T))
 
-#fig2 =plt.figure(3)
-#grid.plot_grid()
+fig2 = plt.figure(3)
+grid.plot_grid()
 
 
 

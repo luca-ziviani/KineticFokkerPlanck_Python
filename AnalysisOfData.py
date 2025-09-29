@@ -12,155 +12,20 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm # for colormaps
 import matplotlib.colors as colors
-import pickle
-import os
 from matplotlib.colors import LogNorm
 from matplotlib.animation import FuncAnimation
+from matplotlib.lines import Line2D
+import pickle
+import os
+
 
 script_dir = os.path.abspath(os.path.dirname(__file__))
 os.chdir(script_dir)
 
-class Grid:
-    def __init__(self, rows, columns, Xmax, Vmax):
-        self.alpha = 0
-        self.beta = 0
-        
-        # grid with ghost points
-        self.rows = rows
-        self.columns = columns
-        self.values = np.zeros((rows+2,columns+2))
-        self.rho = None  
-        
-        # grid size
-        self.Xmax = Xmax
-        self.Vmax = Vmax
+from KineticFokkerPlanck import Grid
 
-        self.dx = 2 * self.Xmax / self.columns
-        self.dv = 2 * self.Vmax / self.rows
-        self.dt = self.dx /(4*Vmax) 
-        
-        self.x = np.linspace(-self.Xmax +self.dx/2 , self.Xmax - self.dx/2 , self.columns)
-        self.v = np.linspace(-self.Vmax +self.dv/2 , self.Vmax - self.dv/2 , self.rows)
-
-        [self.xx,self.vv] = np.meshgrid(self.x ,self.v)
-        
-        # Tools
-        self.GradX = np.ones((rows, columns))
-        self.f_plus = np.zeros((rows, columns+1))
-        self.f_minus = np.zeros((rows, columns+1))
-        self.H = np.zeros(( rows, columns +1))          # Flux in the x direction
-        self.F = np.zeros(( rows+1, columns ))          # Flux in the v direction
-        
-        self.B = np.zeros(( rows-1, columns ))
-        #self.w = self.B * self.dv
-        self.delta = np.zeros(( rows-1, columns ))       
-        
-    def B_delta_build(self):
-        V_edges = np.linspace(-self.Vmax +self.dv , self.Vmax - self.dv , self.rows-1)
-        M1 = 0 # maximum needed to compute CFL condition on dt
-        M2 = 0
-        for n in range(self.columns):
-            for m in range(self.rows-1):
-                self.B[m,n] = (1+ V_edges[m]**2)**((self.beta - 2)/2)*V_edges[m] \
-                    + (1+ self.x[n]**2)**((self.alpha - 2)/2) *self.x[n]
-                  
-                w = self.B[m,n] * self.dv
-                if w!=0:
-                    self.delta[m,n] = 1/w - 1/(np.exp(w)-1)
-                    if M1 <= w/(np.exp(w)-1):
-                        M1 = w/(np.exp(w)-1)
-                    if M2 <= w*np.exp(w)/(np.exp(w)-1):
-                        M2 = w*np.exp(w)/(np.exp(w)-1)
-                else:
-                    self.delta[m,n] = 0.5
-                
-                if self.dt >= 0.5 * (self.dv)**2 /(M1+M2):  
-                    self.dt = 0.5 * (self.dv)**2 /(M1+M2)
-
-        self.dt = self.dt/2
-        
-        return
-        
-    def specular_BD(self):
-        """
-        Update ghost points in x according to
-        specular boundary conditions
-
-        """
-        
-        for i in range(self.rows):
-            self.values[i+1 , -1] = self.values[self.rows-i-1 , -2]
-            self.values[i+1 , 0] = self.values[self.rows-i-1,1 ]
-    
-    def H_update(self, theta=1.8):
-        """
-        
-        Compute the flux H along the x direction
-        
-        """
-        for n in range(1,self.columns+1):
-            for m in range(1, self.rows+1): 
-                self.GradX[m-1,n-1] = minmod(theta*(self.values[m,n] - self.values[m,n-1])/self.dx ,
-                                 (self.values[m,n+1]-self.values[m,n-1])/(2*self.dx) , 
-                                 theta*(self.values[m,n+1]-self.values[m,n])/self.dx)
-                
-                # UPWIND for v>0
-#                if self.v[m-1]>0:
- #                   self.GradX[m-1,n-1 ] =(self.values[m,n]-self.values[m,n-1])/(self.dx)
-  #              else:
-   #                 self.GradX[m-1,n-1 ] =(self.values[m,n+1]-self.values[m,n])/(self.dx)
-        
-        self.f_plus[:,:-1] = self.values[1:-1,1:-1] - self.dx/2 * self.GradX
-        self.f_minus[:,1:] = self.values[1:-1,1:-1] + self.dx/2 * self.GradX
-        
-        for n in range(self.columns+1):
-            for m in range(self.rows):
-                if self.v[m]>=0:
-                    self.H[m,n] = self.v[m]*self.f_minus[m,n]
-                else:
-                    self.H[m,n] = self.v[m]*self.f_plus[m,n]
-                #self.H[m,n] = self.v[m]*(self.f_plus[m,n] + self.f_minus[m,n])/2 
-                #- np.abs(self.v[m]) * (self.f_plus[m,n] - self.f_minus[m,n]) /2
-
-        # Specular flux in boundary conditions
-        for i in range(int(self.rows /2)):
-            self.H[self.rows - 1 -i, 0] = -self.H[i,0]
-            self.H[i, -1] = -self.H[self.rows - 1 -i,-1]
-        
-        
-        
-        return 
-
-    def F_update(self):
-        
-        for n in range(self.columns):
-            for m in range(self.rows-1):
-                self.F[m+1,n] = (1/self.dv + (1-self.delta[m,n])*self.B[m,n]) * self.values[m+2,n+1] \
-                    - (1/self.dv - self.B[m,n]*self.delta[m,n])* self.values[m+1,n+1]
-        
-        # F is already zero on the boundary!
-
-        return             
-
-    def mass(self):
-        return sum(sum(self.values[1:-1,1:-1]))*self.dx*self.dv
-
-    def build_rho(self):
-        self.rho = sum(self.values[1:-1,1:-1])*self.dv
-        return
-    
-    def build_Vdensity(self):
-        DF = np.zeros(self.rows)
-        for i in range(self.rows):
-            DF[i] = sum(self.values[i+1,1:-1])
-        return DF
-
-    def plot_grid(self):
-        ax = plt.axes(projection='3d')
-        ax.plot_surface(self.xx, self.vv, self.values[1:-1,1:-1] , cmap=cm.jet) #[1:-1][::-1, 1:-1]
-        ax.set_xlabel("x")
-        ax.set_ylabel("v")
-        ax.set_title("Plot of f")
+# Tools > Preferences > IPython Console > Graphics > Backend: Qt5
+#---------------------------------------------------------------------
 
 def color_f(grid, log = False):
     """
@@ -197,48 +62,6 @@ def color_f(grid, log = False):
     
     return
 
-def animate_f(Time):
-    """
-
-    Parameters
-    ----------
-    Time : int
-        number of frames (files .pkl to open).
-
-    Returns
-    -------
-    animation
-    
-    """
-    f_values = []
-    
-    for i in range(int(Time/period)+1):
-        with open(folder + 'f_T'+str(i*period)+'_alpha'+str(alpha)+'_beta'+str(beta)+'.pkl','rb') as file:
-            grid = pickle.load(file)
-        f_values.append(grid.values[1:-1,1:-1])
-        print("i = ", i)
-    
-    xx, vv = np.meshgrid(grid.x, grid.v)
-    fig, ax = plt.subplots()
-    pcm = ax.pcolormesh(xx, vv, f_values[0], norm=LogNorm(), cmap=cm.jet, shading="auto")
-    fig.colorbar(pcm, ax=ax, label="f(x,v)")
-    ax.set_xlabel("x")
-    ax.set_ylabel("v")
-    title = ax.set_title(r"Plot of f at t = 0, $\alpha=$"+str(alpha)+r', $\beta= $'+str(beta))
-    # funzione di aggiornamento dell’animazione
-    def update(frame):
-        pcm.set_array(f_values[frame].ravel())
-        pcm.autoscale()
-        title.set_text("Plot of f at t = " + str( frame*period ) +r", $\alpha=$"+str(alpha)+r', $\beta= $'+str(beta))
-        return pcm, title
-    
-    ani = FuncAnimation(fig, update, frames=len(f_values), interval=750, blit=False)
-    
-    plt.show()
-
-    return ani
-
-# Tools > Preferences > IPython Console > Graphics > Backend: Qt5
 def plot_f(grid, log=False):
     """
     Returns
@@ -280,62 +103,247 @@ def contour_f(grid,log = True):
     ax.set_ylabel(r'v')
     ax.set_title(r'Contour plot of f at $t=$'+str(T) + r", $\alpha=$"+str(alpha)+r', $\beta= $'+str(beta))
 
-def mass(f,dx,dv):
-    return dx*dv*sum(sum(f))
+#---------------------------------------------------------------------
 
-def rho(f,dv):
-    return dv * np.sum(f,axis=0)
+def plot_rho(grid, log=True):
+    """
+    Returns
+    -------
+    If log = False :    Make a plot of rho
+    If log = True :    Make a semilogy-plot of rho
+
+    """
+    fig, ax = plt.subplots()
+    if log:
+        ax.semilogy(grid.x, grid.rho,label =r"$\rho$ numeric")
+    else:
+        ax.semilogy(grid.x, grid.rho,label =r"$\rho$ numeric")
+    ax.set_xlabel('x')
+    #plt.xlabel('x')
+    ax.set_ylabel(r'$\rho(x)$')
+    ax.set_title(r"Plot of $\rho_G$ with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +str(grid.beta)+r", $T=$"+ str(T)+ r", $\delta=$"+str(delta))
+    #ax.set_ylim(0, np.max(grid.values)) 
+    
+    if grid.beta < 2:
+        Z=sum(np.exp(-delta*((1+grid.x**2 )**(grid.alpha/2) / grid.alpha)**(grid.beta/2) ))*grid.dx
+        analytical = r"$\exp(- \delta(\frac{|x|^\alpha}{\alpha} )^{\beta/2} )$"
+        plt.semilogy(grid.x , np.exp(-delta*((1+grid.x**2 )**(grid.alpha/2) / grid.alpha)**(grid.beta/2))/Z, label = analytical)
+    else:
+        Z=sum(np.exp(- (1+grid.x**2 )**(grid.alpha/2) / grid.alpha ))*grid.dx
+        analytical = r"$\exp(- \frac{|x|^\alpha}{\alpha})$"
+        plt.semilogy(grid.x , np.exp(- (1+grid.x**2 )**(grid.alpha/2) / grid.alpha)/Z, label = analytical)
+    
+    plt.legend()
+    plt.show()
+
+    return ax
+
+def plot_exponent(grid):
+    """
+    Returns
+    -------
+    Plot of ln( - ln(rho) ) / ln(x)
+
+    """
+    fig, ax = plt.subplots()
+    ax.plot(grid.x, np.log(-np.log(grid.rho))/np.log(np.abs(grid.x)) ,label =r"numeric $\frac{\ln(-\ln(\rho_f))}{\ln(x)}$")
+    if grid.beta < 2:
+        ax.set_ylim((0,1))
+        ax.set_yticks([0.1*i for i in range(11)])
+        ax.plot(grid.x, grid.alpha*grid.beta/2 * np.ones(len(grid.x)), label= r"$\frac{\alpha\beta}{2} \approx $"+ str(round(grid.alpha*grid.beta / 2 , 2)))
+    else:
+        ax.set_ylim((0,2))
+        ax.set_yticks([0.2*i for i in range(11)])
+        ax.plot(grid.x, grid.alpha * np.ones(len(grid.x)), label= r"$\alpha $")
+    plt.legend()
+    ax.set_title(r"Plot of $\rho_f$ with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +str(grid.beta)+r", $T=$"+ str(T))
+    
+    return ax
+
+#---------------------------------------------------------------------
+        
+def animate_f(Time):
+    """
+
+    Parameters
+    ----------
+    Time : int
+        final time of the animation
+    Returns
+    -------
+    Animation from time 0 to Time
+    
+    """
+    f_values = []
+    
+    for i in range(int(Time/period)+1):
+        with open(folder + 'f_T'+str(i*period)+'_alpha'+str(alpha)+'_beta'+str(beta)+'.pkl','rb') as file:
+            grid = pickle.load(file)
+        f_values.append(grid.values[1:-1,1:-1])
+        print("i = ", i)
+    
+    xx, vv = np.meshgrid(grid.x, grid.v)
+    fig, ax = plt.subplots()
+    pcm = ax.pcolormesh(xx, vv, f_values[0], norm=LogNorm(), cmap=cm.jet, shading="auto")
+    fig.colorbar(pcm, ax=ax, label="f(x,v)")
+    ax.set_xlabel("x")
+    ax.set_ylabel("v")
+    title = ax.set_title(r"Plot of f at t = 0, $\alpha=$"+str(alpha)+r', $\beta= $'+str(beta))
+    
+    def update(frame):
+        pcm.set_array(f_values[frame].ravel())
+        pcm.autoscale()
+        title.set_text("Plot of f at t = " + str( frame*period ) +r", $\alpha=$"+str(alpha)+r', $\beta= $'+str(beta))
+        return pcm, title
+    
+    ani = FuncAnimation(fig, update, frames=len(f_values), interval=750, blit=False)
+    
+    plt.show()
+
+    return ani
+
+def animate_rho(T):
+    """
+
+    Parameters
+    ----------
+    num : int
+        number of frames (files .pkl to open).
+
+    Returns
+    -------
+    animation
+    
+    """
+    rho_values = []
+    num = int(T/period)+1
+    for i in range(num):
+        with open(folder + 'f_T'+str(i*period)+'_alpha'+str(alpha)+'_beta'+str(beta)+'.pkl','rb') as file:
+            grid = pickle.load(file)
+        #with open(folder + 'f_T'+str(i*period)+'_alpha'+str(alpha)+'_gamma'+str(beta)+'.pkl','rb') as file:
+        #    grid = pickle.load(file)
+        grid.build_rho()
+
+        rho_values.append(grid.rho)
+    
+    fig, ax = plt.subplots()
+    y = rho_values[0]
+    line, = ax.semilogy(grid.x,y, label = r'Numeric $\rho_f$')
+    ax.set_xlabel("x")
+    if beta<2:
+        y = np.exp(-delta*((1+grid.x**2 )**(grid.alpha/2) / grid.alpha)**(grid.beta/2) )
+        Z=sum(y)*grid.dx
+        analytical = r"$\exp(- \delta(\frac{|x|^\alpha}{\alpha} )^{\beta/2} )$"
+        plt.semilogy(grid.x , y/Z, label = analytical)
+        ax.set_ylim(np.min(y[0]*10**(-5)) , 0.2)
+    else:
+        #pass
+        y = np.exp(-(1+grid.x**2 )**(grid.alpha/2) / grid.alpha )
+        Z=sum(y)*grid.dx
+        analytical = r"$\exp(- (\frac{|x|^\alpha}{\alpha} ) )$"
+        plt.semilogy(grid.x , y/Z, label = analytical)
+        ax.set_ylim(np.min(y[0]) , 0.2)
+        
+    plt.legend()
+
+    title = ax.set_title(r"Plot of $\rho_f$ at t = 0$"+ r", $\alpha = $" + str(alpha)+ r", $\delta = $" + str(beta)+ r", $\beta = $" + str(delta))
+    
+    def update(frame):
+        y = rho_values[frame]
+        line.set_data(grid.x,y)
+        #if beta<2:
+            #ax.autoscale()
+        title.set_text(r"Plot of $\rho_f$ at t = " + str( round(frame*period, 1) )+ r", $\alpha = $" + str(alpha)+ r", $\beta = $" + str(beta) + r", $\delta = $" + str(delta))
+        return line, title
+    
+    ani = FuncAnimation(fig, update, frames=len(rho_values), interval=200, blit=False)
+    
+    plt.show()
+
+    return ani
 
 
-alpha = 1.5
-beta = 0.5
-T = 30
-period = 2
+alpha = 2
+beta = 0.25
+T = 65
+period = 5
 folder = "New/"
 
-delta = 4
-
+delta = 1 #0.5
 
 with open(folder + 'f_T'+str(T)+'_alpha'+str(alpha)+'_beta'+str(beta)+'.pkl','rb') as file:
     grid = pickle.load(file)
-    
-    
+        
 grid.build_rho()
-
 grid.rho = grid.rho/grid.mass()
 
 
+# Uncomment the plots you want to see 
+#--------------------------------------------------
 
-
+# ANIMATIONS
 #ani = animate_f(T)
-#fig=plt.figure()
+ani = animate_rho(T)
+#ani.save("animation_name.mp4", writer="ffmpeg", fps=5)
+
+# SINGLE PLOT OF F
 #color_f(grid,True)
+#contour_f(grid,True)
 
-plot_f(grid,True)
+# (ANSATZ) EXPECTED STEADY STATE
+#SS = Grid(grid.rows, grid.columns, grid.Xmax, grid.Vmax)
+#SS.values = SS.values/SS.mass()
+#SS.alpha = alpha
+#SS.beta = beta
+#SS.values[1:-1,1:-1] = np.exp(- delta * ( (np.abs(SS.vv)**2)/2 + (np.abs(SS.xx)**alpha)/alpha )**(beta/2) )
+#contour_f(SS,True)
 
-"""
-fig1=plt.figure(1)
+# PLOT OF RHO 
+plot_rho(grid)
+
+# EXPONENT OF SUB-DECAY OF RHO
+plot_exponent(grid)
+
+# COMPARISON CONTOUR F AND SS
+
+def profile(s):
+    #return np.exp(-delta*(s**(grid.alpha)/grid.alpha)**(grid.beta/2)) /15
+    return np.exp(-0.3*(s**0.5))
+[xx,vv] = np.meshgrid(grid.x,grid.v)
+Energy = (grid.vv**2) / 2 +  ((1+grid.xx**2)**(grid.alpha/2) ) / grid.alpha
+levels = np.linspace(grid.values.min(), grid.values.max(), 15)  # stessi livelli del tuo f
+
+plt.figure()
 plt.clf()
-plt.semilogy(grid.x, grid.rho,label =r"$\rho$ numeric")
-#Z=sum(np.exp(-(1+grid.x**2 )**(grid.alpha/2) / grid.alpha))*grid.dx
-#plt.semilogy(grid.x , np.exp(-(1+grid.x**2 )**(grid.alpha/2) / grid.alpha)/Z, label = "analytical")
-Z=sum(np.exp(-delta*((1+grid.x**2 )**(grid.alpha/2) / grid.alpha)**(grid.beta/2) ))*grid.dx
-analytical = r"$\exp(- \delta(\frac{|x|^\alpha}{\alpha} )^{\beta/2} )$"
-plt.semilogy(grid.x , np.exp(-delta*((1+grid.x**2 )**(grid.alpha/2) / grid.alpha)**(grid.beta/2))/Z, label = analytical)
+plt.contour(grid.x, grid.v, grid.values[1:-1,1:-1], norm=colors.LogNorm(), levels=20, colors='blue', label = "f")
+plt.contour(grid.x, grid.v, profile(Energy),norm=colors.LogNorm(), levels=20,colors='red', linestyles='dashed', label = r'$\exp(- E^{\beta/2})$')
+plt.xlabel(r'x')
+plt.ylabel(r'v')
 plt.legend()
-plt.title(r"Plot of $\rho_G$ with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +str(grid.beta)+r", $T=$"+ str(T)+ r", $\delta=$"+str(delta))
-#grid.plot_grid()
-"""
-"""
-fig2 = plt.figure(2)
-plt.semilogy(grid.x, grid.rho,label ="rho")
-Z=sum(np.exp(-(1+grid.x**2 )**(grid.beta/4)  ))*grid.dx
-analytical = r"$\exp(- |x|^{\beta/2} )$"
-plt.semilogy(grid.x , np.exp(-(1+grid.x**2 )**(grid.beta/4)) /Z, label = analytical)
-plt.legend()
-plt.title(r"Plot of $\rho_G$ with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +str(grid.beta)+r", $T=$"+ str(T))
-"""
+plt.title(r'Contour plot of f at $t=$'+str(T) + r", $\alpha=$"+str(alpha)+r', $\beta= $'+str(beta))
 
+legend_elements = [
+    Line2D([0], [0], color="blue", label="f(x,y)"),
+    Line2D([0], [0], color="red", linestyle="--", label=r'$\exp(- E^{\beta/2})$')
+]
+
+plt.legend(handles=legend_elements, loc="upper right")
+plt.show()
+
+
+plt.figure()
+plt.clf()
+plt.scatter(Energy.ravel(), grid.values[1:-1,1:-1].ravel(), s=1, alpha=0.2, color='black', label = 'f')
+plt.scatter(Energy.ravel(), profile(Energy).ravel(), s=1, alpha=0.2, color='blue', label = r'$\Gamma(E)$')
+plt.yscale("log")
+plt.xlabel("E(x,v)")
+plt.ylabel("f(x,v)")
+plt.legend()
+plt.title("Profile of f with same energy")
+
+
+
+# PLOT OF V-DENSITY
 #fig2=plt.figure(2)
 #DF = grid.build_Vdensity()
 #plt.plot(grid.v, DF)
@@ -345,10 +353,3 @@ plt.title(r"Plot of $\rho_G$ with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +
 #plt.legend()
 #plt.title(r"Plot of v-density with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +str(grid.beta)+r", $T=$"+ str(T))
 
-#fig2 =plt.figure(3)
-#plt.clf()
-#grid.plot_grid()
-#plt.clf()
-#plt.figure(1)
-#plt.clf()
-#contour_f(grid.x,grid.v,grid.values,grid.alpha,grid.beta)

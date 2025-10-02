@@ -12,7 +12,7 @@ We consider potentials $V=V(x)$ and local equilibria $\mathcal{M}=\mathcal{M}(v)
 
 $$ V(x) = \frac{\lfloor x \rceil ^\alpha}{\alpha} \qquad\qquad \mathcal{M}(v) = \frac{\lfloor v \rceil ^\beta}{\beta} $$
 
-where $\lfloor x \rceil^2^ =1+|x|^2$ and $\alpha>1$, $\beta>0$.
+where $\lfloor x \rceil^2 =1+|x|^2$ and $\alpha>1$, $\beta>0$.
 
 ---
 

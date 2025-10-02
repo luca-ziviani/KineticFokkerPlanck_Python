@@ -2,11 +2,12 @@
 """
 Created on Mon Jul 28 17:49:01 2025
 
-FINITE DIFFERENCE SCHEME
+FINITE VOLUME SCHEME FOR KINETIC FOKKER-PLANCK EQUATION
 
-    This is the branch RoyBorzi
+    This file contains the class Grid for the simulation
 
-@author: lucaz
+@author: Luca Ziviani
+
 """
 
 import numpy as np
@@ -19,7 +20,7 @@ from matplotlib import cm # for colormaps
 def minmod(*args):
     signs = [x > 0 for x in args if x != 0]
 
-    if all(signs) or not any(signs):  # tutti positivi o tutti negativi (escludendo zeri)
+    if all(signs) or not any(signs):
         return min(args, key=abs) if args else 0
     else:
         return 0
@@ -57,7 +58,6 @@ class Grid:
         self.F = np.zeros(( rows+1, columns ))          # Flux in the v direction
         
         self.B = np.zeros(( rows-1, columns ))
-        #self.w = self.B * self.dv
         self.delta = np.zeros(( rows-1, columns ))       
         
     def B_delta_build(self):
@@ -116,12 +116,6 @@ class Grid:
                                  (self.values[m,n+1]-self.values[m,n-1])/(2*self.dx) , 
                                  theta*(self.values[m,n+1]-self.values[m,n])/self.dx)
                 
-                # UPWIND for v>0
-#                if self.v[m-1]>0:
- #                   self.GradX[m-1,n-1 ] =(self.values[m,n]-self.values[m,n-1])/(self.dx)
-  #              else:
-   #                 self.GradX[m-1,n-1 ] =(self.values[m,n+1]-self.values[m,n])/(self.dx)
-        
         self.f_plus[:,:-1] = self.values[1:-1,1:-1] - self.dx/2 * self.GradX
         self.f_minus[:,1:] = self.values[1:-1,1:-1] + self.dx/2 * self.GradX
         
@@ -131,15 +125,11 @@ class Grid:
                     self.H[m,n] = self.v[m]*self.f_minus[m,n]
                 else:
                     self.H[m,n] = self.v[m]*self.f_plus[m,n]
-                #self.H[m,n] = self.v[m]*(self.f_plus[m,n] + self.f_minus[m,n])/2 
-                #- np.abs(self.v[m]) * (self.f_plus[m,n] - self.f_minus[m,n]) /2
-
+                
         # Specular flux in boundary conditions
         for i in range(int(self.rows /2)):
             self.H[self.rows - 1 -i, 0] = -self.H[i,0]
             self.H[i, -1] = -self.H[self.rows - 1 -i,-1]
-        
-        
         
         return 
 

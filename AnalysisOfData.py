@@ -4,7 +4,7 @@ Created on Sat Aug  9 16:15:47 2025
 
 @author: lucaz
 
-ANALYSIS OF DATA FROM CLUSTER
+ANALYSIS OF DATA .PKL OF THE SIMULATIONS
 
 """
 
@@ -23,9 +23,6 @@ script_dir = os.path.abspath(os.path.dirname(__file__))
 os.chdir(script_dir)
 
 from KineticFokkerPlanck import Grid
-
-# Tools > Preferences > IPython Console > Graphics > Backend: Qt5
-#---------------------------------------------------------------------
 
 def color_f(grid, log = False):
     """
@@ -239,7 +236,6 @@ def animate_rho(T):
         plt.semilogy(grid.x , y/Z, label = analytical)
         ax.set_ylim(np.min(y[0]*10**(-5)) , 0.2)
     else:
-        #pass
         y = np.exp(-(1+grid.x**2 )**(grid.alpha/2) / grid.alpha )
         Z=sum(y)*grid.dx
         analytical = r"$\exp(- (\frac{|x|^\alpha}{\alpha} ) )$"
@@ -354,11 +350,11 @@ plt.title("Profile of f with same energy at T="+str(T))
 
 # PLOT OF V-DENSITY
 #fig2=plt.figure(2)
-DF = grid.build_Vdensity()
+#DF = grid.build_Vdensity()
 #plt.plot(grid.v, DF)
 #plt.plot(grid.v, np.exp(-grid.v**2 /2) / np.sqrt(2*np.pi))
-plt.semilogy(grid.v, np.exp(-np.abs(grid.v)**grid.beta ) / np.sqrt(2*np.pi), label = "analytical")
-plt.semilogy(grid.v, DF, label = "numeric")
-plt.legend()
-plt.title(r"Plot of v-density with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +str(grid.beta)+r", $T=$"+ str(T))
+#plt.semilogy(grid.v, np.exp(-np.abs(grid.v)**grid.beta ) / np.sqrt(2*np.pi), label = "analytical")
+#plt.semilogy(grid.v, DF, label = "numeric")
+#plt.legend()
+#plt.title(r"Plot of v-density with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +str(grid.beta)+r", $T=$"+ str(T))
 

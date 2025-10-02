@@ -8,35 +8,28 @@ where:
 - The **transport operator** corresponds to a **classical Hamiltonian vector field** with external potential $V(x)$,
 - The **collision operator** is a **Fokker–Planck operator in velocity**.
 
+We consider potentials $V=V(x)$ and local equilibria $\mathcal{M}=\mathcal{M}(v)$ of the form
+
+$$ V(x) = \frac{\lfloor x \rceil ^\alpha}{\alpha} \qquad\qquad \mathcal{M}(v) = \frac{\lfloor v \rceil ^\beta}{\beta} $$
+
+where $\lfloor x \rceil =\sqrt{1+|x|^2}$ and $\alpha>1$, $\beta>0$.
+
 ---
 
 ## Domain and Boundary Conditions
 
 - The computation is performed on a **very large domain** in both **space** $x$ and **velocity** $v$.
-- **Dirichlet boundary conditions** are imposed at the boundaries of the computational box.
+- The numerical scheme is taken from [A. Borzì, S. Roy, Numerical approximation of kinetic Fokker–Planck equations with specular reflection boundary conditions](https://www.sciencedirect.com/science/article/pii/S0021999124000901) 
+- **Specular boundary conditions in space ** and ** zero-flux boundary conditions in velocity ** are imposed at the boundaries of the computational box.
 
----
-
-## Numerical Method
-
-The scheme is based on an **operator splitting strategy**:
-
-1. **Transport step (explicit):**
-   - The transport part is discretized with a **finite difference scheme**.
-   - The **CFL condition** governs the choice of the time step to ensure stability.
-   
-2. **Collision step (implicit):**
-   - The collision operator is treated with the **Chang–Cooper scheme** in velocity.
-   - This ensures **positivity preservation** and a correct **long-time equilibrium**.
-   - The scheme is solved **implicitly**, making it **unconditionally stable** in this step.
 
 ---
 
 ## Features
 
-- Splitting method combining explicit (transport) and implicit (collision) discretizations.
-- **Positivity-preserving** and **conservative** treatment of the collision term.
-- Suitable for exploring **long-time dynamics** and **equilibrium states** $G$.
+- **Positivity-preserving**
+- **Mass-preserving**
+- Stability under ** CFL conditions **
 
 ---
 

@@ -2,11 +2,12 @@
 """
 Created on Mon Jul 28 17:49:01 2025
 
-FINITE DIFFERENCE SCHEME
+FINITE VOLUME SCHEME FOR KINETIC FOKKER-PLANCK EQUATION
 
-    This is the branch RoyBorzi
+    This file contains the main program to launch the simulation
 
-@author: lucaz
+@author: Luca Ziviani
+
 """
 
 import numpy as np
@@ -18,11 +19,13 @@ os.chdir(script_dir)
 
 from KineticFokkerPlanck import Grid, minmod
 
+# Choose parameters
+#--------------------------------------------
 
 alpha = 1
 beta  = 1
 T = 10
-modulo = 2
+modulo = 2 # number of files .pkl to save
 
 folder = '' # Specify the folder of the backups (files .pkl)
 
@@ -37,7 +40,7 @@ folder = '' # Specify the folder of the backups (files .pkl)
 CONTINUE = False
 
 if CONTINUE:
-    T_old = 98
+    T_old = 100
     with open(folder + 'f_T'+str(round( T_old ))+'_alpha'+str(alpha)+'_beta'+str(beta)+'.pkl', 'rb') as filef:
         grid = pickle.load(filef)
     

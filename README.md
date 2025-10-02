@@ -12,7 +12,7 @@ We consider potentials $V=V(x)$ and local equilibria $\mathcal{M}=\mathcal{M}(v)
 
 $$ V(x) = \frac{\lfloor x \rceil ^\alpha}{\alpha} \qquad\qquad \mathcal{M}(v) = \frac{\lfloor v \rceil ^\beta}{\beta} $$
 
-where $\lfloor x \rceil =\sqrt{1+|x|^2}$ and $\alpha>1$, $\beta>0$.
+where $\lfloor x \rceil^2^ =1+|x|^2$ and $\alpha>1$, $\beta>0$.
 
 ---
 
@@ -20,7 +20,7 @@ where $\lfloor x \rceil =\sqrt{1+|x|^2}$ and $\alpha>1$, $\beta>0$.
 
 - The computation is performed on a **very large domain** in both **space** $x$ and **velocity** $v$.
 - The numerical scheme is taken from [A. Borzì, S. Roy, Numerical approximation of kinetic Fokker–Planck equations with specular reflection boundary conditions](https://www.sciencedirect.com/science/article/pii/S0021999124000901) 
-- **Specular boundary conditions in space ** and ** zero-flux boundary conditions in velocity ** are imposed at the boundaries of the computational box.
+- **Specular boundary conditions in space** and **zero-flux boundary conditions in velocity** are imposed at the boundaries of the computational box.
 
 
 ---
@@ -29,7 +29,7 @@ where $\lfloor x \rceil =\sqrt{1+|x|^2}$ and $\alpha>1$, $\beta>0$.
 
 - **Positivity-preserving**
 - **Mass-preserving**
-- Stability under ** CFL conditions **
+- Stability under **CFL conditions**
 
 ---
 

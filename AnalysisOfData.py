@@ -125,9 +125,11 @@ def plot_rho(grid, log=True):
     #ax.set_ylim(0, np.max(grid.values)) 
     
     if grid.beta < 2:
-        Z=sum(np.exp(-delta*((1+grid.x**2 )**(grid.alpha/2) / grid.alpha)**(grid.beta/2) ))*grid.dx
         analytical = r"$\exp(- \delta(\frac{|x|^\alpha}{\alpha} )^{\beta/2} )$"
-        plt.semilogy(grid.x , np.exp(-delta*((1+grid.x**2 )**(grid.alpha/2) / grid.alpha)**(grid.beta/2))/Z, label = analytical)
+        y= np.exp(-delta*(((1+grid.x**2 )**(grid.alpha/2) / grid.alpha)**(grid.beta/2) ))
+        #y=(1+grid.x**2 )**(grid.alpha/4 * (1-grid.beta/2)) * np.exp(-delta*((1+grid.x**2 )**(grid.alpha/2) / grid.alpha)**(grid.beta/2) )
+        Z=sum(y)*grid.dx
+        plt.semilogy(grid.x , y/Z, label = analytical)
     else:
         Z=sum(np.exp(- (1+grid.x**2 )**(grid.alpha/2) / grid.alpha ))*grid.dx
         analytical = r"$\exp(- \frac{|x|^\alpha}{\alpha})$"
@@ -265,7 +267,7 @@ def animate_rho(T):
 
 alpha = 2
 beta = 0.25
-T = 65
+T = 115
 period = 5
 folder = "New/"
 
@@ -283,7 +285,7 @@ grid.rho = grid.rho/grid.mass()
 
 # ANIMATIONS
 #ani = animate_f(T)
-ani = animate_rho(T)
+#ani = animate_rho(T)
 #ani.save("animation_name.mp4", writer="ffmpeg", fps=5)
 
 # SINGLE PLOT OF F
@@ -299,24 +301,31 @@ ani = animate_rho(T)
 #contour_f(SS,True)
 
 # PLOT OF RHO 
-plot_rho(grid)
+#plot_rho(grid)
 
 # EXPONENT OF SUB-DECAY OF RHO
-plot_exponent(grid)
+#plot_exponent(grid)
 
 # COMPARISON CONTOUR F AND SS
-
-def profile(s):
-    #return np.exp(-delta*(s**(grid.alpha)/grid.alpha)**(grid.beta/2)) /15
-    return np.exp(-0.3*(s**0.5))
+"""
+def profile(E):
+    y = np.exp(-delta*(E**(grid.beta/2)))
+    return y
+    #return np.exp(-0.3*(s**0.5))
 [xx,vv] = np.meshgrid(grid.x,grid.v)
 Energy = (grid.vv**2) / 2 +  ((1+grid.xx**2)**(grid.alpha/2) ) / grid.alpha
-levels = np.linspace(grid.values.min(), grid.values.max(), 15)  # stessi livelli del tuo f
+Prof_energy = profile(Energy)
+
+Prof_energy= Prof_energy/(sum(sum(Prof_energy))*grid.dx*grid.dv)
+
+levels = []
+for i in range(20):
+    levels.append(profile(Energy[0 , 10*i ])) #profile(reversed(np.linspace(0,565 , 15)))  # stessi livelli del tuo f
 
 plt.figure()
 plt.clf()
 plt.contour(grid.x, grid.v, grid.values[1:-1,1:-1], norm=colors.LogNorm(), levels=20, colors='blue', label = "f")
-plt.contour(grid.x, grid.v, profile(Energy),norm=colors.LogNorm(), levels=20,colors='red', linestyles='dashed', label = r'$\exp(- E^{\beta/2})$')
+plt.contour(grid.x, grid.v, Prof_energy,norm=colors.LogNorm(), levels=20 ,colors='red', linestyles='dashed', label = r'$\exp(- E^{\beta/2})$')
 plt.xlabel(r'x')
 plt.ylabel(r'v')
 plt.legend()
@@ -334,22 +343,22 @@ plt.show()
 plt.figure()
 plt.clf()
 plt.scatter(Energy.ravel(), grid.values[1:-1,1:-1].ravel(), s=1, alpha=0.2, color='black', label = 'f')
-plt.scatter(Energy.ravel(), profile(Energy).ravel(), s=1, alpha=0.2, color='blue', label = r'$\Gamma(E)$')
+plt.scatter(Energy.ravel(), Prof_energy.ravel(), s=1, alpha=0.2, color='blue', label = r'$\Gamma(E)$')
 plt.yscale("log")
 plt.xlabel("E(x,v)")
 plt.ylabel("f(x,v)")
 plt.legend()
-plt.title("Profile of f with same energy")
+plt.title("Profile of f with same energy at T="+str(T))
 
-
+"""
 
 # PLOT OF V-DENSITY
 #fig2=plt.figure(2)
-#DF = grid.build_Vdensity()
+DF = grid.build_Vdensity()
 #plt.plot(grid.v, DF)
 #plt.plot(grid.v, np.exp(-grid.v**2 /2) / np.sqrt(2*np.pi))
-#plt.semilogy(grid.v, np.exp(-grid.v**2 /2) / np.sqrt(2*np.pi), label = "analytical")
-#plt.semilogy(grid.v, DF, label = "numeric")
-#plt.legend()
-#plt.title(r"Plot of v-density with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +str(grid.beta)+r", $T=$"+ str(T))
+plt.semilogy(grid.v, np.exp(-np.abs(grid.v)**grid.beta ) / np.sqrt(2*np.pi), label = "analytical")
+plt.semilogy(grid.v, DF, label = "numeric")
+plt.legend()
+plt.title(r"Plot of v-density with $\alpha=$" + str(grid.alpha) + r", $\beta=$" +str(grid.beta)+r", $T=$"+ str(T))
 

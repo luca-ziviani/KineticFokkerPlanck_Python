@@ -2,3 +2,7 @@
 *.png
 *.mp4
 __pycache__/
+AnalysisOfData.py
+Notebook.py
+alpha1_beta1.py
+alpha1.5_beta0.5.py

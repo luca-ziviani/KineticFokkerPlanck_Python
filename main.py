@@ -24,14 +24,17 @@ from KineticFokkerPlanck import Grid, minmod
 
 alpha = 1
 beta  = 1
-T = 10
-modulo = 2 # number of files .pkl to save
+T = 30
+(rows, columns, Xmax, Vmax)=(60,60,10,10)
+modulo = 50 # number of files .pkl to save
 
-folder = '' # Specify the folder of the backups (files .pkl)
+folder = 'Example' # Specify the folder of the backups (files .pkl)
+folder_path = os.path.join(script_dir, folder)
+os.makedirs(folder_path, exist_ok=True)
 
 #----------------------------------------
 # Automate the resume of a simulation:
-#    CONTINUE = True 
+#   CONTINUE = True 
 #       ->  Open the last state ( set manually T_old as the last time )
 #           and resume the simulation with the same parameters.
 #   CONTINUE = False
@@ -41,7 +44,7 @@ CONTINUE = False
 
 if CONTINUE:
     T_old = 100
-    with open(folder + 'f_T'+str(round( T_old ))+'_alpha'+str(alpha)+'_beta'+str(beta)+'.pkl', 'rb') as filef:
+    with open(os.path.join(folder_path, 'f_T'+str(round(T_old))+'_alpha'+str(alpha)+'_beta'+str(beta)+'.pkl'), 'rb') as filef:
         grid = pickle.load(filef)
     
     grid1 = Grid(grid.rows, grid.columns, grid.Xmax, grid.Vmax)
@@ -53,8 +56,8 @@ if CONTINUE:
     Nt = int(T/grid.dt)
 
 else:
-    grid  = Grid(10,10,10,10)
-    grid1 = Grid(10,10,10,10) # For Runghe-Kutta 2
+    grid  = Grid(rows, columns, Xmax, Vmax)
+    grid1 = Grid(rows, columns, Xmax, Vmax) # For Runghe-Kutta 2
     
     grid.alpha = alpha
     grid.beta = beta
@@ -62,7 +65,7 @@ else:
     grid1.beta = beta
     
     # Initialisation:
-    grid.values[1:-1,1:-1] = np.exp(-np.abs(grid.xx)/2 - np.abs(grid.vv)/2)/16
+    grid.values[1:-1,1:-1] = np.exp(-np.abs(grid.xx-7)**2/2 - np.abs(grid.vv-5)**2/2)/16
     grid.B_delta_build()
     grid1.B_delta_build()
     
@@ -72,7 +75,7 @@ else:
 # Start the simulation    
 #---------------------------------------------------------------------------------
 
-for k in range(Nt):
+for k in range(Nt+1):
     grid.specular_BD()
     grid.H_update()
     grid.F_update()
@@ -90,7 +93,9 @@ for k in range(Nt):
     # Save date on file
     if k % int(Nt/modulo) == 0:
         
-        with open(folder + 'f_T'+str(round(T_old + k*grid.dt))+'_alpha'+str(grid.alpha)+'_beta'+str(grid.beta)+'.pkl', 'wb') as filef:
+        print(f" Iterations: {k:>9} | Progress: {int(k/Nt*100)} %")
+        
+        with open(os.path.join(folder_path, 'f_T'+str(round(T_old + k*grid.dt))+'_alpha'+str(grid.alpha)+'_beta'+str(grid.beta)+'.pkl'), 'wb') as filef:
             pickle.dump(grid,filef)
         
 

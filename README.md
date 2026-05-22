@@ -16,6 +16,8 @@ where $\lfloor x \rceil^2 =1+|x|^2$ and $\alpha>1$, $\beta>0$.
 
 The reference paper is [arxiv:2510.12331](https://arxiv.org/pdf/2510.12331).
 
+https://github.com/user-attachments/assets/3b71d7fa-92f6-4e26-9fc2-2b59757ca9ec
+
 ---
 
 ## Domain and Boundary Conditions
